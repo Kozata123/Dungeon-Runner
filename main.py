@@ -38,21 +38,25 @@ current_event = None
 event_outcome_text = []  # Stores temporary message after an action
 
 def calculate_success_chance():
-    base_chance = 50
-    """Calculates success rate based on items: Base 50% + Weapons(10%) + Armor(5%) + Potions(5%)"""
+    """Calculates success rate, lowering the maximum success ceiling over time in Endless."""
+    global game_mode, stage, weapons, armor, potions
+    
+    # Calculate player's raw chance from gear
+    chance = 50 + (weapons * 10) + (armor * 5) + (potions * 5)
+    
     if game_mode == "ENDLESS":
-        # Calculate how many boss milestones (every 5 stages) have been passed
+        # Tracks how many bosses have been passed (Stage 6 = 1, Stage 11 = 2, etc.)
         bosses_passed = (stage - 1) // 5
         
-        # Deduct 10% success chance for every boss passed
-        penalty = bosses_passed * 10
-        base_chance -= penalty
+        # Lower the maximum allowed success rate by 2% per boss passed
+        # max(40, ...) ensures the ceiling never drops below 40% success
+        max_ceiling = max(40, 100 - (bosses_passed * 5))
         
-        # Clamp the base chance so it never drops below 10% purely from penalties
-        base_chance = max(10, base_chance)
-    chance = base_chance + (weapons * 10) + (armor * 5) + (potions * 5)
-    return min(100, chance)  # Cap at 100%
-
+        # Clamp the final chance between a minimum of 5% and our new dropping ceiling
+        return max(5, min(max_ceiling, chance))
+        
+    # Normal mode stays capped at a flat 100%
+    return max(5, min(100, chance))
 
 def generate_event():
     """Generates a randomized stage event or a Boss fight every 5th stage."""
@@ -159,6 +163,15 @@ def draw_hud():
     chance = calculate_success_chance()
     chance_surf = font_medium.render(f"Success Chance: {chance}%", True, GREEN if chance >= 70 else WHITE)
     screen.blit(chance_surf, (50, 535))
+    
+    if game_mode == "ENDLESS":
+        bosses_passed = (stage - 1) // 5
+        max_ceiling = max(40, 100 - (bosses_passed * 5))
+        
+        # Displays the current restricted ceiling directly to the player
+        debug_text = f"(Bosses Defeated: {bosses_passed}  |  Max Success Allowed: {max_ceiling}%)"
+        debug_surf = font_small.render(debug_text, True, RED)
+        screen.blit(debug_surf, (50, 565))
     
     # Potion usage prompt
     if potions > 0 and health < max_health:
