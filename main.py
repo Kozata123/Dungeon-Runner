@@ -38,8 +38,19 @@ current_event = None
 event_outcome_text = []  # Stores temporary message after an action
 
 def calculate_success_chance():
+    base_chance = 50
     """Calculates success rate based on items: Base 50% + Weapons(10%) + Armor(5%) + Potions(5%)"""
-    chance = 50 + (weapons * 10) + (armor * 5) + (potions * 5)
+    if game_mode == "ENDLESS":
+        # Calculate how many boss milestones (every 5 stages) have been passed
+        bosses_passed = (stage - 1) // 5
+        
+        # Deduct 10% success chance for every boss passed
+        penalty = bosses_passed * 10
+        base_chance -= penalty
+        
+        # Clamp the base chance so it never drops below 10% purely from penalties
+        base_chance = max(10, base_chance)
+    chance = base_chance + (weapons * 10) + (armor * 5) + (potions * 5)
     return min(100, chance)  # Cap at 100%
 
 
@@ -156,7 +167,7 @@ def draw_hud():
 
 
 def handle_event_action(action):
-    """Handles the RNG outcome mechanics for choosing 'DO' or 'TRY ESCAPE'."""
+    """Handles the RNG outcome mechanics for choosing 'DO' or 'ESCAPE'."""
     global stage, health, weapons, armor, potions, current_event, event_outcome_text
     
     if action == "ESCAPE":
@@ -165,7 +176,7 @@ def handle_event_action(action):
         current_event = generate_event()
         return "EVENT_MENU"
 
-    # Action is "DO" -> Roll RNG success check
+    # Action is "ACT" -> Roll RNG success check
     chance = calculate_success_chance()
     roll = random.randint(1, 100)
     
@@ -206,6 +217,8 @@ def handle_event_action(action):
         health -= 1
         if current_event["type"] == "trap":
             event_outcome_text = ["Failed! The trap triggered and caught you. You took 1 damage!"]
+        elif current_event["type"] == "loot":
+            event_outcome_text=["Failed! The chest mimic opens its mouth, attacking you!"]
         else:
             event_outcome_text = ["Failed! You lost the encounter and took 1 damage!"]
             
@@ -256,7 +269,7 @@ def main():
             
             # TRY ESCAPE Button
             escape_rect = pygame.Rect(420, 390, 300, 110)
-            hover_escape = draw_bordered_box(screen, escape_rect, ["TRY ESCAPE", "(FORFEIT REWARDS)"], font_small, is_button=True)
+            hover_escape = draw_bordered_box(screen, escape_rect, ["ESCAPE", "(FORFEIT REWARDS)"], font_small, is_button=True)
             
         elif state == 'GAME_OVER':
             rect_go = pygame.Rect(150, 150, 500, 150)
